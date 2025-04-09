@@ -1,5 +1,5 @@
 import { Holiday } from './types';
-
+import { format } from 'date-fns';
 interface HolidayInfoProps {
   holiday: Holiday;
   onClose: () => void;
@@ -11,7 +11,7 @@ const HolidayInfo = ({ holiday, onClose }: HolidayInfoProps) => {
       <div className="flex justify-between items-start">
         <h3 className="text-lg font-semibold text-indigo-700">{holiday.name}</h3>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-          &times;
+          
         </button>
       </div>
       
@@ -19,6 +19,7 @@ const HolidayInfo = ({ holiday, onClose }: HolidayInfoProps) => {
         <div>
           <p className="text-sm text-gray-600">Local Name: <span className="font-medium">{holiday.localName}</span></p>
           <p className="text-sm text-gray-600">Country: <span className="font-medium">{holiday.countryCode}</span></p>
+          <p className="text-sm text-gray-600">Date: <span className="font-medium">{format(holiday.date, 'MMM dd')}</span></p>
         </div>
         <div>
           <p className="text-sm text-gray-600">Fixed Date: <span className="font-medium">{holiday.fixed ? 'Yes' : 'No'}</span></p>

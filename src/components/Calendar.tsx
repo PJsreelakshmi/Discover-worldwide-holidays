@@ -11,54 +11,54 @@ interface CalendarProps {
 
 const CustomCalendar = ({ countryCode }: CalendarProps) => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [holidaysCache, setHolidaysCache] = useState<Record<string, Holiday[]>>({});
   const [selectedHoliday, setSelectedHoliday] = useState<Holiday | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const year = currentDate.getFullYear();
+  const cacheKey = `${countryCode}_${year}`;
+  const holidays = holidaysCache[cacheKey] || [];
+
   useEffect(() => {
     const fetchHolidays = async () => {
-      if (!countryCode) return;
-      
+      if (!countryCode || holidaysCache[cacheKey]) return; // Already cached
+
       try {
         setIsLoading(true);
         setError(null);
-        const year = currentDate.getFullYear();
-        
         const API_KEY = 'PGKNQtYPToRgMHQ9uJ2W1SycFgdKsAsa';
         const response = await axios.get(
           `https://calendarific.com/api/v2/holidays?api_key=${API_KEY}&country=${countryCode}&year=${year}`
         );
-        
-        if (response.data && response.data.response && Array.isArray(response.data.response.holidays)) {
+
+        if (response.data?.response?.holidays) {
           const formattedHolidays = response.data.response.holidays.map((holiday: any) => ({
             date: `${holiday.date.iso.split('T')[0]}`,
             localName: holiday.name,
             name: holiday.name,
-            countryCode: countryCode,
+            countryCode,
             fixed: true,
             global: true,
             counties: null,
             launchYear: null,
-            types: [holiday.type[0]]
+            types: [holiday.type[0]],
           }));
-          
-          setHolidays(formattedHolidays);
+
+          setHolidaysCache(prev => ({ ...prev, [cacheKey]: formattedHolidays }));
         } else {
-          setHolidays([]);
           setError(`No holiday data available for ${countryCode}`);
         }
-        setIsLoading(false);
       } catch (err) {
         console.error("Error fetching holidays:", err);
-        setHolidays([]);
-        setError(`Failed to load holidays. Please try again later.`);
+        setError("Failed to load holidays. Please try again later.");
+      } finally {
         setIsLoading(false);
       }
     };
 
     fetchHolidays();
-  }, [countryCode, currentDate]);
+  }, [cacheKey, countryCode, holidaysCache]);
 
   const tileContent = ({ date, view }: { date: Date; view: string }) => {
     if (view === 'month') {
@@ -67,7 +67,9 @@ const CustomCalendar = ({ countryCode }: CalendarProps) => {
       if (holiday) {
         return (
           <div className="mt-1 w-full text-center">
-            <span className="text-xs text-indigo-600 line-clamp-2">{holiday.localName}</span>
+            <span className="text-xs text-red-600 font-poppins line-clamp-2 hover:text-red-800 transition-colors duration-200">
+              {holiday.localName}
+            </span>
           </div>
         );
       }
@@ -79,10 +81,13 @@ const CustomCalendar = ({ countryCode }: CalendarProps) => {
     if (view === 'month') {
       const formattedDate = format(date, 'yyyy-MM-dd');
       const holiday = holidays.find(h => h.date === formattedDate);
-      const classes = ['h-24 flex flex-col items-center justify-start p-2'];
+      const classes = [
+        'h-32 flex flex-col items-center justify-center p-2 rounded-lg shadow-md transition-all duration-300',
+        'hover:shadow-lg hover:bg-red-50 hover:scale-105'
+      ];
       if (holiday) classes.push('bg-red-100 text-red-800');
-      if (isSameDay(date, new Date())) classes.push('border-2 border-indigo-500 bg-white');
-      return classes;
+      if (isSameDay(date, new Date())) classes.push('border-2 border-indigo-500 bg-white font-bold');
+      return classes.join(' ');
     }
     return null;
   };
@@ -98,11 +103,11 @@ const CustomCalendar = ({ countryCode }: CalendarProps) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto">
       {isLoading ? (
-        <div className="text-center py-8 text-gray-600">Loading holidays...</div>
+        <div className="text-center py-8 text-gray-600 font-poppins animate-pulse">Loading holidays...</div>
       ) : error ? (
-        <div className="text-center py-8 text-red-500">{error}</div>
+        <div className="text-center py-8 text-red-500 font-poppins animate-pulse">{error}</div>
       ) : (
         <div className="bg-white rounded-xl shadow-lg p-6">
           <Calendar
@@ -111,56 +116,85 @@ const CustomCalendar = ({ countryCode }: CalendarProps) => {
             tileContent={tileContent}
             tileClassName={tileClassName}
             onActiveStartDateChange={handleActiveStartDateChange}
-            className="w-full border-none"
+            className="w-full border-none font-poppins"
             navigationLabel={({ date }) => (
-              <h2 className="text-xl font-semibold text-gray-800">{format(date, 'MMMM yyyy')}</h2>
+              <span className="text-3xl font-bold text-gray-900 font-poppins mx-auto">
+                {format(date, 'MMMM yyyy')}
+              </span>
             )}
+            prev2Label="«"
+            next2Label="»"
           />
-          {selectedHoliday && <HolidayInfo holiday={selectedHoliday} onClose={() => setSelectedHoliday(null)} />}
+          {selectedHoliday && (
+            <HolidayInfo
+              holiday={selectedHoliday}
+              onClose={() => setSelectedHoliday(null)}
+              className="mt-4 p-4 bg-white rounded-lg shadow-lg border border-gray-200 transition-all duration-300 transform hover:scale-101"
+            />
+          )}
         </div>
       )}
+
       <style jsx global>{`
         .react-calendar__navigation {
           display: flex;
           align-items: center;
           justify-content: space-between;
           margin-bottom: 1.5rem;
+          padding: 0.75rem;
+          background: linear-gradient(to right, #e0e7ff, #f3e8ff);
+          border-radius: 1rem;
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
         }
 
         .react-calendar__navigation__label {
-          order: 1;
-          flex-grow: 1;
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
           text-align: center;
-        }
-
-        .react-calendar__navigation__prev2-button,
-        .react-calendar__navigation__next2-button {
-          display: none;
+          flex-grow: 0;
+          color: #1e293b;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          font-family: 'Poppins', sans-serif;
         }
 
         .react-calendar__navigation__prev-button,
-        .react-calendar__navigation__next-button {
-          width: 2.5rem;
-          height: 2.5rem;
-          font-size: 1.5rem;
+        .react-calendar__navigation__next-button,
+        .react-calendar__navigation__prev2-button,
+        .react-calendar__navigation__next2-button {
+          width: 2.75rem;
+          height: 2.75rem;
+          font-size: 1.75rem;
           border-radius: 50%;
-          background: #f8fafc;
-          border: none;
+          background: #ffffff;
+          border: 2px solid #e0e7ff;
           cursor: pointer;
-          transition: background 0.2s;
-          color: #4a5568;
+          transition: all 0.3s ease;
+          color: #4b5563;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
         .react-calendar__navigation__prev-button:hover,
-        .react-calendar__navigation__next-button:hover {
-          background: #e2e8f0;
+        .react-calendar__navigation__next-button:hover,
+        .react-calendar__navigation__prev2-button:hover,
+        .react-calendar__navigation__next2-button:hover {
+          background: #e0e7ff;
+          transform: scale(1.15);
+          border-color: #a3bffa;
         }
 
         .react-calendar__month-view__weekdays {
           text-align: center;
           font-weight: 600;
-          color: #6b7280;
+          color: #4b5563;
           margin-bottom: 1rem;
+          background: #f9fafb;
+          padding: 0.75rem;
+          border-radius: 0.75rem;
+          font-family: 'Poppins', sans-serif;
         }
 
         .react-calendar__month-view__days__day--neighboringMonth {
@@ -170,7 +204,14 @@ const CustomCalendar = ({ countryCode }: CalendarProps) => {
 
         .react-calendar__tile--active,
         .react-calendar__tile:hover {
-          background: #edf2f7;
+          background: #dbeafe;
+          border-radius: 0.75rem;
+          transform: scale(1.1);
+        }
+
+        .react-calendar__tile:focus {
+          outline: none;
+          box-shadow: 0 0 0 3px #3b82f6;
         }
       `}</style>
     </div>

@@ -11,7 +11,7 @@ function App() {
       style={{ backgroundImage: "url('/bg.jpg')" }}
     >
       
-        <h1 className="text-3xl font-semibold font-serif italic text-center text-indigo-800 mb-4">
+        <h1 className="text-3xl font-semibold font-serif font-poppins text-center text-indigo-800 mb-4">
         Discover Worldwide Holidays Instantly
         </h1>
 
